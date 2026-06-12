@@ -15,6 +15,10 @@ class ApplianceService {
   static const _inceptiumIdKey = 'inceptium_id';
 
   static const _inceptiumAppClass = 'com.incappmyshelter.IncAppMyShelter';
+  static const _myDeviceClass =
+      'com.incappmyshelteradmin.data.mydevice.MyDevice';
+  static const _executeCommandToRemoteClientMethod =
+      '_executeCommandToRemoteClient';
   static const _recordsCommandBase =
       'callappcommand?command=getrecords::class=com.incappmyshelteradmin.data.mydevice.MyDevice::filter.b64=::order.b64=';
 
@@ -74,6 +78,67 @@ class ApplianceService {
       );
     }
     return devices;
+  }
+
+  Future<String> loadApplianceVersion(MyDevice device) async {
+    try {
+      debugPrint(
+        '[APPLIANCE VERSION] Richiesta versione per ${device.deviceName}',
+      );
+
+      const openCronoCommand = 'command=get?version';
+      debugPrint('[APPLIANCE VERSION] Comando OpenCrono: $openCronoCommand');
+
+      final serialDevice = device.serialDevice;
+      final softwareCode = device.softwareCode;
+      final commandB64 = 'cmd:${base64Encode(utf8.encode(openCronoCommand))}';
+      final params =
+          'serialdevice=$serialDevice::softwarecode=$softwareCode::command_64=$commandB64';
+
+      debugPrint('[APPLIANCE VERSION] serialDevice: $serialDevice');
+      debugPrint('[APPLIANCE VERSION] softwareCode: $softwareCode');
+      debugPrint('[APPLIANCE VERSION] commandB64: $commandB64');
+      debugPrint('[APPLIANCE VERSION] params plain: $params');
+
+      final response = await _client.executeMethod(
+        _myDeviceClass,
+        _executeCommandToRemoteClientMethod,
+        params,
+      );
+
+      debugPrint('[APPLIANCE VERSION] Risposta raw: $response');
+
+      final trimmed = response.trim();
+      if (!trimmed.startsWith('<')) {
+        debugPrint('[APPLIANCE VERSION] Versione estratta: $trimmed');
+        return trimmed;
+      }
+
+      final match = RegExp(
+        r'<version>(.*?)</version>',
+        caseSensitive: false,
+        dotAll: true,
+      ).firstMatch(trimmed);
+
+      if (match == null) {
+        debugPrint('[APPLIANCE VERSION] Versione estratta: ERROR');
+        return 'ERROR';
+      }
+
+      final extractedVersion = (match.group(1) ?? '').trim();
+      if (extractedVersion.isEmpty) {
+        debugPrint('[APPLIANCE VERSION] Versione estratta: ERROR');
+        return 'ERROR';
+      }
+
+      debugPrint(
+        '[APPLIANCE VERSION] Versione estratta: $extractedVersion',
+      );
+      return extractedVersion;
+    } catch (_) {
+      debugPrint('[APPLIANCE VERSION] Versione estratta: ERROR');
+      return 'ERROR';
+    }
   }
 
   Future<void> _hydrateCredentialsFromStorage() async {

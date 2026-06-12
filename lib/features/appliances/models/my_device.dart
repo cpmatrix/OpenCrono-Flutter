@@ -15,6 +15,42 @@ class MyDevice {
   final bool online;
   final Map<String, dynamic> raw;
 
+  String get serialDevice => _readFromRaw([
+        'serialDevice',
+        'SerialDevice',
+        'serialdevice',
+        'serial',
+        'Serial',
+      ]);
+
+  String get softwareCode {
+    final value = _readFromRaw([
+      'softwareCode',
+      'SoftwareCode',
+      'softwarecode',
+      'deviceCode',
+      'DeviceCode',
+      'code',
+      'Code',
+    ]);
+
+    return value.isEmpty ? deviceCode : value;
+  }
+
+  String get deviceVersionDescription {
+    final value = _readFromRaw([
+      'deviceVersionDescription',
+      'DeviceVersionDescription',
+      'versionDescription',
+      'serverVersion',
+      'ServerVersion',
+      'version',
+      'Version',
+    ]);
+
+    return value.isEmpty ? serverVersion : value;
+  }
+
   factory MyDevice.fromJson(Map<String, dynamic> json) {
     final normalized = Map<String, dynamic>.from(json);
 
@@ -105,5 +141,21 @@ class MyDevice {
       ]),
       raw: normalized,
     );
+  }
+
+  String _readFromRaw(List<String> keys) {
+    for (final key in keys) {
+      final value = raw[key];
+      if (value == null) {
+        continue;
+      }
+
+      final text = value.toString().trim();
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+
+    return '';
   }
 }

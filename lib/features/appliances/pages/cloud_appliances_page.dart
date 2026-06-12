@@ -22,6 +22,8 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
   bool _isLoading = true;
   String? _error;
   List<MyDevice> _devices = const [];
+  final Map<String, String> _realVersionsByDevice = {};
+  final Set<String> _versionLoadingKeys = {};
 
   @override
   void initState() {
@@ -62,6 +64,28 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _verifyVersion(MyDevice device) async {
+    final key = _deviceKey(device);
+    if (_versionLoadingKeys.contains(key)) {
+      return;
+    }
+
+    setState(() {
+      _versionLoadingKeys.add(key);
+    });
+
+    final version = await _applianceService.loadApplianceVersion(device);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _realVersionsByDevice[key] = version;
+      _versionLoadingKeys.remove(key);
+    });
   }
 
   @override
@@ -118,6 +142,10 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final device = _devices[index];
+                  final deviceKey = _deviceKey(device);
+                  final isCheckingVersion =
+                      _versionLoadingKeys.contains(deviceKey);
+                  final realVersion = _realVersionsByDevice[deviceKey] ?? '-';
                   return Card(
                     elevation: 4,
                     color: const Color(0xFF131D28),
@@ -156,6 +184,25 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
                             label: 'Versione server',
                             value: _fallback(device.serverVersion),
                           ),
+                          _InfoLine(
+                            label: 'Versione lista',
+                            value: _fallback(device.deviceVersionDescription),
+                          ),
+                          _InfoLine(
+                            label: 'Versione server reale',
+                            value:
+                                isCheckingVersion ? 'Verifica...' : realVersion,
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton(
+                              onPressed: isCheckingVersion
+                                  ? null
+                                  : () => _verifyVersion(device),
+                              child: const Text('Verifica versione'),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -168,6 +215,10 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
       print(stack);
       return const SizedBox.shrink();
     }
+  }
+
+  String _deviceKey(MyDevice device) {
+    return '${device.serialDevice}|${device.softwareCode}|${device.deviceName}';
   }
 
   String _fallback(String value) => value.isEmpty ? '-' : value;

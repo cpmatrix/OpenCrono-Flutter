@@ -34,6 +34,8 @@ class InceptiumHttpClient {
   static const String _getNewSessionCommand = 'get_new_inceptium_session?';
   static const String _waitTaskCommand = 'get_task_status?taskid=';
   static const String _loadAppCommand = 'load_app?classapp=';
+  static const String _executeMethodCommand =
+      'callappcommand?command=executemethod::';
 
   Future<bool> getNewWebSession() async {
     _log('Apertura sessione');
@@ -230,9 +232,23 @@ class InceptiumHttpClient {
     }
   }
 
-  Future<String> executeMethod(String method, {Duration? timeout}) async {
+  Future<String> executeCommand(String method, {Duration? timeout}) async {
     _log('Esecuzione metodo: $method');
     return sendCommand(method, timeout: timeout);
+  }
+
+  Future<String> executeMethod(
+    String className,
+    String methodName,
+    String params,
+  ) async {
+    final command =
+        '${_executeMethodCommand}class=${className.trim()}::method=${methodName.trim()}::$params::';
+
+    _log('executeMethod params plain: $params');
+    _log('executeMethod command finale: $command');
+
+    return executeCommand(command);
   }
 
   Future<void> waitTask(String task, {int timeoutMs = 15000}) async {
@@ -240,7 +256,7 @@ class InceptiumHttpClient {
     final waitTaskCommand = '$_waitTaskCommand$encodedTask::';
 
     _log('Attesa task remoto: $task');
-    await executeMethod(
+    await executeCommand(
       waitTaskCommand,
       timeout: Duration(milliseconds: timeoutMs),
     );
@@ -251,7 +267,7 @@ class InceptiumHttpClient {
     final loadCommand = '$_loadAppCommand$encodedAppClass::';
 
     _log('Caricamento app Inceptium: $appClassName');
-    final response = await executeMethod(loadCommand);
+    final response = await executeCommand(loadCommand);
     if (response.trim().isEmpty) {
       _setStatus(InceptiumConnectionStatus.appNotLoaded, 'App non caricata');
       throw StateError('App Inceptium non caricata');
