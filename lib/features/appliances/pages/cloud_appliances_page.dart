@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/inceptium/services/inceptium_http_client.dart';
+import '../../opencrono/pages/opencrono_page.dart';
 import '../models/my_device.dart';
 import '../services/appliance_service.dart';
 
@@ -88,6 +89,37 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
     });
   }
 
+  Future<void> _openOpenCronoPage(MyDevice device) async {
+    final key = _deviceKey(device);
+
+    setState(() {
+      _versionLoadingKeys.add(key);
+    });
+
+    print('[OPENCRONO] Device selezionato: ${device.deviceName}');
+    final serverVersion = await _applianceService.loadApplianceVersion(device);
+    print('[OPENCRONO] Versione server: $serverVersion');
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _realVersionsByDevice[key] = serverVersion;
+      _versionLoadingKeys.remove(key);
+    });
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => OpenCronoPage(
+          device: device,
+          client: widget.inceptiumClient,
+          serverVersion: serverVersion,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     try {
@@ -146,64 +178,71 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
                   final isCheckingVersion =
                       _versionLoadingKeys.contains(deviceKey);
                   final realVersion = _realVersionsByDevice[deviceKey] ?? '-';
-                  return Card(
-                    elevation: 4,
-                    color: const Color(0xFF131D28),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  device.deviceName.isEmpty
-                                      ? 'Device senza nome'
-                                      : device.deviceName,
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: isCheckingVersion
+                        ? null
+                        : () => _openOpenCronoPage(device),
+                    child: Card(
+                      elevation: 4,
+                      color: const Color(0xFF131D28),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    device.deviceName.isEmpty
+                                        ? 'Device senza nome'
+                                        : device.deviceName,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
                                 ),
-                              ),
-                              _StatusChip(online: device.online),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          _InfoLine(
-                            label: 'Codice',
-                            value: _fallback(device.deviceCode),
-                          ),
-                          _InfoLine(
-                            label: 'IP locale',
-                            value: _fallback(device.localIp),
-                          ),
-                          _InfoLine(
-                            label: 'Versione server',
-                            value: _fallback(device.serverVersion),
-                          ),
-                          _InfoLine(
-                            label: 'Versione lista',
-                            value: _fallback(device.deviceVersionDescription),
-                          ),
-                          _InfoLine(
-                            label: 'Versione server reale',
-                            value:
-                                isCheckingVersion ? 'Verifica...' : realVersion,
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: OutlinedButton(
-                              onPressed: isCheckingVersion
-                                  ? null
-                                  : () => _verifyVersion(device),
-                              child: const Text('Verifica versione'),
+                                _StatusChip(online: device.online),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 10),
+                            _InfoLine(
+                              label: 'Codice',
+                              value: _fallback(device.deviceCode),
+                            ),
+                            _InfoLine(
+                              label: 'IP locale',
+                              value: _fallback(device.localIp),
+                            ),
+                            _InfoLine(
+                              label: 'Versione server',
+                              value: _fallback(device.serverVersion),
+                            ),
+                            _InfoLine(
+                              label: 'Versione lista',
+                              value: _fallback(device.deviceVersionDescription),
+                            ),
+                            _InfoLine(
+                              label: 'Versione server reale',
+                              value: isCheckingVersion
+                                  ? 'Verifica...'
+                                  : realVersion,
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: OutlinedButton(
+                                onPressed: isCheckingVersion
+                                    ? null
+                                    : () => _verifyVersion(device),
+                                child: const Text('Verifica versione'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );

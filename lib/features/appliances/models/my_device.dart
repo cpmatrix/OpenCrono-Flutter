@@ -51,6 +51,13 @@ class MyDevice {
     return value.isEmpty ? serverVersion : value;
   }
 
+  String get localPort => _readFromRaw([
+        'localPort',
+        'LocalPort',
+        'port',
+        'Port',
+      ]);
+
   factory MyDevice.fromJson(Map<String, dynamic> json) {
     final normalized = Map<String, dynamic>.from(json);
 
