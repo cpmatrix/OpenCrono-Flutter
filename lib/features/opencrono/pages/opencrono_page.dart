@@ -31,8 +31,6 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   bool _isLoadingElements = false;
   String? _elementsError;
   List<OpenCronoElement> _allElements = const [];
-  int _totalElements = 0;
-  int _homeElementsCount = 0;
   int _currentGroupId = 0;
   String _currentGroupTitle = 'Home';
   final List<_GroupState> _groupStack = [];
@@ -151,8 +149,6 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       if (trimmed.isEmpty || trimmed == 'ERROR') {
         setState(() {
           _elementsError = 'Risposta vuota o ERROR';
-          _totalElements = 0;
-          _homeElementsCount = 0;
           _allElements = const [];
           _currentGroupId = 0;
           _currentGroupTitle = 'Home';
@@ -182,8 +178,6 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       }
 
       setState(() {
-        _totalElements = parsedElements.length;
-        _homeElementsCount = homeElements.length;
         _allElements = parsedElements;
         _currentGroupId = 0;
         _currentGroupTitle = 'Home';
@@ -197,8 +191,6 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     } catch (e) {
       setState(() {
         _elementsError = 'Errore caricamento elementi: $e';
-        _totalElements = 0;
-        _homeElementsCount = 0;
         _allElements = const [];
         _currentGroupId = 0;
         _currentGroupTitle = 'Home';
@@ -210,11 +202,6 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final localPort =
-        widget.device.localPort.trim().isEmpty ? '-' : widget.device.localPort;
-    final localIp =
-        widget.device.localIp.trim().isEmpty ? '-' : widget.device.localIp;
-
     final visibleElements = _visibleElements;
 
     return WillPopScope(
@@ -240,17 +227,12 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
-              _InfoLine(
-                  label: 'softwareCode', value: widget.device.softwareCode),
-              _InfoLine(
-                  label: 'serialDevice', value: widget.device.serialDevice),
-              _InfoLine(
-                  label: 'localIP/localPort', value: '$localIp/$localPort'),
-              _InfoLine(
-                label: 'online/offline',
-                value: widget.device.online ? 'online' : 'offline',
+              Text(
+                _currentGroupTitle,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white70,
+                    ),
               ),
-              _InfoLine(label: 'serverVersion', value: widget.serverVersion),
               const SizedBox(height: 14),
               if (_elementsError != null)
                 Column(
@@ -281,11 +263,6 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                   ),
                 )
               else ...[
-                const SizedBox(height: 8),
-                Text('Totale elementi: $_totalElements'),
-                Text('Elementi Home: $_homeElementsCount'),
-                Text('Gruppo corrente: $_currentGroupTitle ($_currentGroupId)'),
-                const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: OutlinedButton.icon(
@@ -315,12 +292,6 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                           6 => Icons.power_settings_new,
                           _ => Icons.widgets_outlined,
                         };
-                        final statusText = switch (element.status) {
-                          1 => 'ON',
-                          0 => 'OFF',
-                          _ => 'status=${element.status}',
-                        };
-
                         return InkWell(
                           borderRadius: BorderRadius.circular(14),
                           onTap: () => _onElementTap(element),
@@ -361,22 +332,29 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                                   ],
                                 ),
                                 const Spacer(),
-                                Text(
-                                  'id: ${element.id}',
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                                Text(
-                                  'type: ${element.type}',
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                                Text(
-                                  statusText,
-                                  style: TextStyle(
-                                    color: active
-                                        ? const Color(0xFF7CF3A0)
-                                        : Colors.white70,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      active
+                                          ? Icons.toggle_on
+                                          : Icons.toggle_off_outlined,
+                                      color: active
+                                          ? const Color(0xFF7CF3A0)
+                                          : Colors.white38,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: active
+                                            ? const Color(0xFF7CF3A0)
+                                            : const Color(0xFF4A5563),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -408,19 +386,4 @@ class _GroupState {
 
   final int id;
   final String title;
-}
-
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text('$label: $value'),
-    );
-  }
 }
