@@ -39,6 +39,13 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
 
   final OpenCronoXmlParser _xmlParser = OpenCronoXmlParser();
 
+  @override
+  void initState() {
+    super.initState();
+    print('[OPENCRONO] Auto caricamento elementi');
+    _loadElementsStatus();
+  }
+
   List<OpenCronoElement> get _visibleElements {
     return _allElements
         .where((element) => element.idGroup == _currentGroupId)
@@ -164,6 +171,8 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       final homeElements =
           parsedElements.where((element) => element.idGroup == 0).toList();
 
+      print('[OPENCRONO] Elementi caricati: ${parsedElements.length}');
+
       print('[OPENCRONO PARSER] Elementi trovati: ${parsedElements.length}');
       print('[OPENCRONO PARSER] Home elements: ${homeElements.length}');
       for (final element in homeElements) {
@@ -243,135 +252,149 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
               ),
               _InfoLine(label: 'serverVersion', value: widget.serverVersion),
               const SizedBox(height: 14),
-              ElevatedButton(
-                onPressed: _isLoadingElements ? null : _loadElementsStatus,
-                child: _isLoadingElements
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Carica elementi'),
-              ),
-              const SizedBox(height: 12),
               if (_elementsError != null)
-                Text(
-                  _elementsError!,
-                  style: const TextStyle(color: Color(0xFFFF8A80)),
-                ),
-              const SizedBox(height: 8),
-              Text('Totale elementi: $_totalElements'),
-              Text('Elementi Home: $_homeElementsCount'),
-              Text('Gruppo corrente: $_currentGroupTitle ($_currentGroupId)'),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: _goBackPressed,
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Back'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (visibleElements.isNotEmpty)
-                Expanded(
-                  child: GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 1.2,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _elementsError!,
+                      style: const TextStyle(color: Color(0xFFFF8A80)),
                     ),
-                    itemCount: visibleElements.length,
-                    itemBuilder: (context, index) {
-                      final element = visibleElements[index];
-                      final active = element.status == 1;
-                      final icon = switch (element.type) {
-                        11 => Icons.folder_open,
-                        5 => Icons.visibility_outlined,
-                        6 => Icons.power_settings_new,
-                        _ => Icons.widgets_outlined,
-                      };
-                      final statusText = switch (element.status) {
-                        1 => 'ON',
-                        0 => 'OFF',
-                        _ => 'status=${element.status}',
-                      };
-
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () => _onElementTap(element),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: active
-                                ? const Color(0xFF1A3550)
-                                : const Color(0xFF1A222D),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: active
-                                  ? const Color(0xFF4BA3FF)
-                                  : const Color(0xFF2E3947),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(icon, color: Colors.white),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      element.title.isEmpty
-                                          ? 'Elemento ${element.id}'
-                                          : element.title,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const Spacer(),
-                              Text(
-                                'id: ${element.id}',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              Text(
-                                'type: ${element.type}',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              Text(
-                                statusText,
-                                style: TextStyle(
-                                  color: active
-                                      ? const Color(0xFF7CF3A0)
-                                      : Colors.white70,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      onPressed: _loadElementsStatus,
+                      child: const Text('Riprova'),
+                    ),
+                  ],
+                ),
+              if (_isLoadingElements)
+                const Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text('Caricamento elementi...'),
+                      ],
+                    ),
                   ),
                 )
-              else
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      'Nessun elemento nel gruppo corrente',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
+              else ...[
+                const SizedBox(height: 8),
+                Text('Totale elementi: $_totalElements'),
+                Text('Elementi Home: $_homeElementsCount'),
+                Text('Gruppo corrente: $_currentGroupTitle ($_currentGroupId)'),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: _goBackPressed,
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Back'),
                   ),
                 ),
+                const SizedBox(height: 8),
+                if (visibleElements.isNotEmpty)
+                  Expanded(
+                    child: GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.2,
+                      ),
+                      itemCount: visibleElements.length,
+                      itemBuilder: (context, index) {
+                        final element = visibleElements[index];
+                        final active = element.status == 1;
+                        final icon = switch (element.type) {
+                          11 => Icons.folder_open,
+                          5 => Icons.visibility_outlined,
+                          6 => Icons.power_settings_new,
+                          _ => Icons.widgets_outlined,
+                        };
+                        final statusText = switch (element.status) {
+                          1 => 'ON',
+                          0 => 'OFF',
+                          _ => 'status=${element.status}',
+                        };
+
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => _onElementTap(element),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: active
+                                  ? const Color(0xFF1A3550)
+                                  : const Color(0xFF1A222D),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: active
+                                    ? const Color(0xFF4BA3FF)
+                                    : const Color(0xFF2E3947),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(icon, color: Colors.white),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        element.title.isEmpty
+                                            ? 'Elemento ${element.id}'
+                                            : element.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                Text(
+                                  'id: ${element.id}',
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                Text(
+                                  'type: ${element.type}',
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    color: active
+                                        ? const Color(0xFF7CF3A0)
+                                        : Colors.white70,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        'Nessun elemento nel gruppo corrente',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+              ],
             ],
           ),
         ),
