@@ -144,17 +144,11 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Accedi alla piattaforma',
+                          'Client for your Virtual PLC',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _inceptiumConfig.baseUrl,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 30),
                         TextField(
                           controller: _usernameController,
                           keyboardType: TextInputType.text,
@@ -215,7 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                         const SizedBox(height: 10),
                         Text(
-                          'Inceptium ID: ${_inceptiumConfig.inceptiumId}',
+                          'by MakerCaputo - 2026',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
