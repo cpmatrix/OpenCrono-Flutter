@@ -216,7 +216,7 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
                             const SizedBox(height: 10),
                             _InfoLine(
                               label: 'Codice',
-                              value: _fallback(device.deviceCode),
+                              value: _fallback(device.softwareCode),
                             ),
                             _InfoLine(
                               label: 'IP locale',
