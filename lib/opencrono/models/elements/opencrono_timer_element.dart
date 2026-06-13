@@ -36,7 +36,6 @@ class OpenCronoTimerElement extends OpenCronoElement {
       imageAsset: getImageAsset(),
       title: safeTitle,
       status: status,
-      showStatus: false,
       titleInLeftArea: true,
     );
   }

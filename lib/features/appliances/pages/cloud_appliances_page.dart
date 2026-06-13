@@ -54,7 +54,11 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
       setState(() {
         _devices = devices;
         _isLoading = false;
+        for (final d in devices) {
+          if (d.online) _versionLoadingKeys.add(_deviceKey(d));
+        }
       });
+      _loadAllVersionsSequentially(devices);
     } on Exception catch (error) {
       if (!mounted) {
         return;
@@ -67,26 +71,27 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
     }
   }
 
-  Future<void> _verifyVersion(MyDevice device) async {
-    final key = _deviceKey(device);
-    if (_versionLoadingKeys.contains(key)) {
-      return;
+  Future<void> _loadAllVersionsSequentially(List<MyDevice> devices) async {
+    for (final device in devices) {
+      if (!mounted) return;
+      final key = _deviceKey(device);
+      if (!device.online) {
+        print('[APPLIANCE VERSION LIST] Offline ${device.deviceName}');
+        setState(() {
+          _realVersionsByDevice[key] = 'offline';
+          _versionLoadingKeys.remove(key);
+        });
+        continue;
+      }
+      print('[APPLIANCE VERSION LIST] Verifico ${device.deviceName}');
+      final version = await _applianceService.loadApplianceVersion(device);
+      if (!mounted) return;
+      print('[APPLIANCE VERSION LIST] ${device.deviceName} -> $version');
+      setState(() {
+        _realVersionsByDevice[key] = version;
+        _versionLoadingKeys.remove(key);
+      });
     }
-
-    setState(() {
-      _versionLoadingKeys.add(key);
-    });
-
-    final version = await _applianceService.loadApplianceVersion(device);
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _realVersionsByDevice[key] = version;
-      _versionLoadingKeys.remove(key);
-    });
   }
 
   Future<void> _openOpenCronoPage(MyDevice device) async {
@@ -218,28 +223,12 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
                               value: _fallback(device.localIp),
                             ),
                             _InfoLine(
-                              label: 'Versione server',
-                              value: _fallback(device.serverVersion),
-                            ),
-                            _InfoLine(
-                              label: 'Versione lista',
-                              value: _fallback(device.deviceVersionDescription),
-                            ),
-                            _InfoLine(
-                              label: 'Versione server reale',
-                              value: isCheckingVersion
-                                  ? 'Verifica...'
-                                  : realVersion,
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: OutlinedButton(
-                                onPressed: isCheckingVersion
-                                    ? null
-                                    : () => _verifyVersion(device),
-                                child: const Text('Verifica versione'),
-                              ),
+                              label: 'Srv. Version',
+                              value: !device.online
+                                  ? 'offline'
+                                  : isCheckingVersion
+                                      ? 'verifica...'
+                                      : realVersion,
                             ),
                           ],
                         ),

@@ -5,12 +5,9 @@ Widget buildOpenCronoElementWidget({
   required String imageAsset,
   required String title,
   required int? status,
-  bool showStatus = true,
   bool titleAboveImage = false,
   bool titleInLeftArea = false,
 }) {
-  final isActive = status == 1;
-
   return ClipRRect(
     borderRadius: BorderRadius.circular(16),
     child: LayoutBuilder(
@@ -89,41 +86,23 @@ Widget buildOpenCronoElementWidget({
                   padding: EdgeInsets.symmetric(
                     horizontal: constraints.maxWidth * 0.10,
                   ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black87,
-                            blurRadius: 6,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black87,
+                          blurRadius: 6,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-              ),
-            if (showStatus)
-              Positioned(
-                top: 10,
-                left: 10,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? const Color(0xFF7CF3A0)
-                        : const Color(0xFF4A5563),
-                    shape: BoxShape.circle,
                   ),
                 ),
               ),

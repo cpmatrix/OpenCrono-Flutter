@@ -34,7 +34,6 @@ class OpenCronoGroupElement extends OpenCronoElement {
       imageAsset: getImageAsset(),
       title: safeTitle,
       status: status,
-      showStatus: false,
     );
   }
 
