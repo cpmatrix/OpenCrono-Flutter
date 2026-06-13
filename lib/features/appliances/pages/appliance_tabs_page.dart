@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/inceptium/services/inceptium_http_client.dart';
-
+import '../../../core/utils/app_log.dart';
+import '../../auth/pages/login_page.dart';
 import 'cloud_appliances_page.dart';
 
 class ApplianceTabsPage extends StatefulWidget {
@@ -22,9 +23,8 @@ class _ApplianceTabsPageState extends State<ApplianceTabsPage> {
   @override
   void initState() {
     super.initState();
-    print(
-      '[APPLIANCE TABS] Client session ricevuta: ${widget.inceptiumClient.currentWebSession}',
-    );
+    AppLog.d(
+        '[APPLIANCE TABS] Client session ricevuta: ${widget.inceptiumClient.currentWebSession}');
   }
 
   @override
@@ -32,7 +32,7 @@ class _ApplianceTabsPageState extends State<ApplianceTabsPage> {
     final pages = [
       CloudAppliancesPage(inceptiumClient: widget.inceptiumClient),
       _TabPlaceholder(label: 'Local'),
-      _TabPlaceholder(label: 'Impostazioni'),
+      _SettingsTab(inceptiumClient: widget.inceptiumClient),
     ];
 
     return Scaffold(
@@ -83,6 +83,45 @@ class _TabPlaceholder extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.headlineMedium,
+      ),
+    );
+  }
+}
+
+class _SettingsTab extends StatelessWidget {
+  const _SettingsTab({required this.inceptiumClient});
+
+  final InceptiumHttpClient inceptiumClient;
+
+  Future<void> _logout(BuildContext context) async {
+    AppLog.d('[AUTH] Logout richiesto');
+    inceptiumClient.currentWebSession = null;
+    AppLog.d('[AUTH] Ritorno alla LoginPage');
+    if (!context.mounted) return;
+    await Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Impostazioni',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 32),
+          OutlinedButton.icon(
+            onPressed: () => _logout(context),
+            icon: const Icon(Icons.logout),
+            label: const Text('Logout'),
+          ),
+        ],
       ),
     );
   }

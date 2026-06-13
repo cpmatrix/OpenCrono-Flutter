@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/inceptium/services/inceptium_http_client.dart';
+import '../../../core/utils/app_log.dart';
 import '../../opencrono/pages/opencrono_page.dart';
 import '../models/my_device.dart';
 import '../services/appliance_service.dart';
@@ -17,7 +18,8 @@ class CloudAppliancesPage extends StatefulWidget {
   State<CloudAppliancesPage> createState() => _CloudAppliancesPageState();
 }
 
-class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
+class _CloudAppliancesPageState extends State<CloudAppliancesPage>
+    with WidgetsBindingObserver {
   late final ApplianceService _applianceService;
 
   bool _isLoading = true;
@@ -29,12 +31,29 @@ class _CloudAppliancesPageState extends State<CloudAppliancesPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _applianceService = ApplianceService(client: widget.inceptiumClient);
-    print(
-      '[APPLIANCES PAGE] Client session ricevuta: ${widget.inceptiumClient.currentWebSession}',
-    );
-    print('[APPLIANCES PAGE] initState');
+    AppLog.d(
+        '[APPLIANCES PAGE] Client session ricevuta: ${widget.inceptiumClient.currentWebSession}');
+    AppLog.d('[APPLIANCES PAGE] initState');
     _loadAppliances();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AppLog.d('[APP LIFECYCLE] App resumed');
+      if (!_isLoading) {
+        AppLog.d('[APPLIANCES] Refresh automatico dopo ritorno foreground');
+        _loadAppliances();
+      }
+    }
   }
 
   Future<void> _loadAppliances() async {
