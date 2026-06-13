@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 
 import '../../appliances/models/my_device.dart';
+import '../services/opencrono_xml_cache_service.dart';
 import '../services/opencrono_xml_parser.dart';
 import '../../../opencrono/factory/opencrono_element_factory.dart';
 import '../../../opencrono/models/elements/opencrono_element.dart';
@@ -35,7 +37,11 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   int _currentGroupId = 0;
   String _currentGroupTitle = 'Home';
   final List<_GroupState> _groupStack = [];
+  bool _isRefreshingElements = false;
+  Timer? _refreshTimer;
 
+  final OpenCronoXmlCacheService _xmlCacheService =
+      const OpenCronoXmlCacheService();
   final OpenCronoXmlParser _xmlParser = OpenCronoXmlParser();
 
   @override
@@ -43,6 +49,13 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     super.initState();
     print('[OPENCRONO] Auto caricamento elementi');
     _loadElementsStatus();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    print('[OPENCRONO REFRESH] Stop refresh');
+    super.dispose();
   }
 
   List<OpenCronoElement> get _visibleElements {
@@ -150,77 +163,56 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     try {
       print('[OPENCRONO] Caricamento elementi');
 
-      const openCronoCommand = 'command=get?elements_status';
-      final commandB64 = 'cmd:${base64Encode(utf8.encode(openCronoCommand))}';
-      print('[OPENCRONO] commandB64: $commandB64');
-
-      final params =
-          'serialdevice=${widget.device.serialDevice}::softwarecode=${widget.device.softwareCode}::command_64=$commandB64';
-
-      final response = await widget.client.executeMethod(
-        _myDeviceClass,
-        _executeCommandToRemoteClientMethod,
-        params,
-      );
-
-      final trimmed = response.trim();
-      if (trimmed.isEmpty || trimmed == 'ERROR') {
-        setState(() {
-          _elementsError = 'Risposta vuota o ERROR';
-          _allElements = const [];
-          _currentGroupId = 0;
-          _currentGroupTitle = 'Home';
-          _groupStack.clear();
-          _isLoadingElements = false;
-        });
-        return;
-      }
-
-      print('[OPENCRONO] Risposta lunga: ${trimmed.length} caratteri');
-      final preview300 =
-          trimmed.length <= 300 ? trimmed : trimmed.substring(0, 300);
-      print('[OPENCRONO] Anteprima XML: $preview300');
-
-      final parsedElementsData = _xmlParser.parseElementsStatus(trimmed);
-      final parsedElements = <OpenCronoElement>[];
-
-      for (final elementData in parsedElementsData) {
-        try {
-          final createdElement = OpenCronoElementFactory.create(
-            type: elementData.type,
-            id: elementData.id.toString(),
-            status: elementData.status,
-            currentValue: elementData.currentValue,
-            title: elementData.title,
-            labelValue: elementData.labelValue,
-            idGroup: elementData.idGroup,
-            currentTextValue: elementData.currentTextValue,
-            userProperty: elementData.userPropertyRaw,
-          );
-
+      final hasCache = await _xmlCacheService.hasCachedXml(widget.device);
+      if (hasCache) {
+        print(
+          '[OPENCRONO CACHE] Cache trovata per ${widget.device.deviceName}',
+        );
+        final cachedXml = await _xmlCacheService.readCachedXml(widget.device);
+        final trimmedCache = cachedXml?.trim() ?? '';
+        if (trimmedCache.isNotEmpty) {
+          final cachedElements = _buildElementsFromXml(trimmedCache);
           print(
-            '[FACTORY] type=${elementData.type} -> ${createdElement.runtimeType} -> ${elementData.title}',
+            '[OPENCRONO CACHE] Elementi caricati da cache: ${cachedElements.length}',
           );
-          parsedElements.add(createdElement);
-        } on UnsupportedError {
-          print(
-            '[FACTORY] type=${elementData.type} -> Unsupported -> ${elementData.title}',
-          );
+          if (mounted) {
+            setState(() {
+              _allElements = cachedElements;
+              _currentGroupId = 0;
+              _currentGroupTitle = 'Home';
+              _groupStack
+                ..clear()
+                ..add(const _GroupState(0, 'Home'));
+              _elementsError = null;
+              _isLoadingElements = false;
+            });
+          }
         }
       }
 
-      final homeElements =
-          parsedElements.where((element) => element.idGroup == 0).toList();
+      final serverXml = await _fetchElementsXml();
+      if (serverXml == null) {
+        if (!mounted) {
+          return;
+        }
 
-      print('[OPENCRONO] Elementi caricati: ${parsedElements.length}');
+        if (_allElements.isEmpty) {
+          setState(() {
+            _elementsError = 'Risposta vuota o ERROR';
+            _isLoadingElements = false;
+          });
+        }
+        _startPeriodicRefresh();
+        return;
+      }
 
-      print(
-          '[OPENCRONO PARSER] Elementi trovati: ${parsedElementsData.length}');
-      print('[OPENCRONO PARSER] Home elements: ${homeElements.length}');
-      for (final element in homeElements) {
-        print(
-          '[OPENCRONO PARSER] Elemento: id=${element.id ?? ''} type=${element.type ?? -1} title=${element.title ?? ''} idGroup=${element.idGroup ?? -1}',
-        );
+      print('[OPENCRONO SYNC] XML server ricevuto');
+      await _xmlCacheService.saveCachedXml(widget.device, serverXml);
+      print('[OPENCRONO CACHE] Cache aggiornata');
+
+      final parsedElements = _buildElementsFromXml(serverXml);
+      if (!mounted) {
+        return;
       }
 
       setState(() {
@@ -234,15 +226,118 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
         _isLoadingElements = false;
       });
       _logCurrentGroupState();
+      _startPeriodicRefresh();
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _elementsError = 'Errore caricamento elementi: $e';
-        _allElements = const [];
-        _currentGroupId = 0;
-        _currentGroupTitle = 'Home';
-        _groupStack.clear();
         _isLoadingElements = false;
       });
+    }
+  }
+
+  Future<String?> _fetchElementsXml() async {
+    const openCronoCommand = 'command=get?elements_status';
+    final commandB64 = 'cmd:${base64Encode(utf8.encode(openCronoCommand))}';
+    print('[OPENCRONO] commandB64: $commandB64');
+
+    final params =
+        'serialdevice=${widget.device.serialDevice}::softwarecode=${widget.device.softwareCode}::command_64=$commandB64';
+
+    final response = await widget.client.executeMethod(
+      _myDeviceClass,
+      _executeCommandToRemoteClientMethod,
+      params,
+    );
+
+    final trimmed = response.trim();
+    if (trimmed.isEmpty || trimmed == 'ERROR') {
+      return null;
+    }
+
+    print('[OPENCRONO] Risposta lunga: ${trimmed.length} caratteri');
+    final preview300 =
+        trimmed.length <= 300 ? trimmed : trimmed.substring(0, 300);
+    print('[OPENCRONO] Anteprima XML: $preview300');
+    return trimmed;
+  }
+
+  List<OpenCronoElement> _buildElementsFromXml(String xml) {
+    final parsedElementsData = _xmlParser.parseElementsStatus(xml);
+    final parsedElements = <OpenCronoElement>[];
+
+    for (final elementData in parsedElementsData) {
+      try {
+        final createdElement = OpenCronoElementFactory.create(
+          type: elementData.type,
+          id: elementData.id.toString(),
+          status: elementData.status,
+          currentValue: elementData.currentValue,
+          title: elementData.title,
+          labelValue: elementData.labelValue,
+          idGroup: elementData.idGroup,
+          currentTextValue: elementData.currentTextValue,
+          userProperty: elementData.userPropertyRaw,
+        );
+
+        print(
+          '[FACTORY] type=${elementData.type} -> ${createdElement.runtimeType} -> ${elementData.title}',
+        );
+        parsedElements.add(createdElement);
+      } on UnsupportedError {
+        print(
+          '[FACTORY] type=${elementData.type} -> Unsupported -> ${elementData.title}',
+        );
+      }
+    }
+
+    return parsedElements;
+  }
+
+  void _startPeriodicRefresh() {
+    if (_refreshTimer != null) {
+      return;
+    }
+
+    print('[OPENCRONO REFRESH] Avvio refresh periodico 1500ms');
+    _refreshTimer = Timer.periodic(
+      const Duration(milliseconds: 1500),
+      (_) => _refreshElementsStatus(),
+    );
+  }
+
+  Future<void> _refreshElementsStatus() async {
+    if (_isRefreshingElements || !mounted) {
+      return;
+    }
+
+    _isRefreshingElements = true;
+    try {
+      print('[OPENCRONO REFRESH] Aggiornamento XML');
+      final serverXml = await _fetchElementsXml();
+      if (serverXml == null || !mounted) {
+        return;
+      }
+
+      await _xmlCacheService.saveCachedXml(widget.device, serverXml);
+      print('[OPENCRONO CACHE] Cache aggiornata');
+
+      final updatedElements = _buildElementsFromXml(serverXml);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _allElements = updatedElements;
+        _elementsError = null;
+      });
+
+      print(
+          '[OPENCRONO REFRESH] Elementi aggiornati: ${updatedElements.length}');
+    } finally {
+      _isRefreshingElements = false;
     }
   }
 
