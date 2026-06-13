@@ -5,7 +5,7 @@ import 'package:xml/xml.dart';
 import '../models/opencrono_element.dart';
 
 class OpenCronoXmlParser {
-  List<OpenCronoElement> parseElementsStatus(String xml) {
+  List<OpenCronoElementData> parseElementsStatus(String xml) {
     try {
       final document = XmlDocument.parse(xml);
       final elements = document.findAllElements('elemento');
@@ -16,7 +16,7 @@ class OpenCronoXmlParser {
     }
   }
 
-  OpenCronoElement _mapXmlElement(XmlElement element) {
+  OpenCronoElementData _mapXmlElement(XmlElement element) {
     final attributes = <String, String>{
       for (final attribute in element.attributes)
         attribute.name.local: attribute.value,
@@ -24,7 +24,7 @@ class OpenCronoXmlParser {
 
     final userPropertyRaw = _readString(attributes, 'user_property');
 
-    return OpenCronoElement(
+    return OpenCronoElementData(
       id: _readInt(attributes, 'id'),
       type: _readInt(attributes, 'type'),
       status: _readInt(attributes, 'status'),

@@ -1,5 +1,5 @@
-class OpenCronoElement {
-  const OpenCronoElement({
+class OpenCronoElementData {
+  const OpenCronoElementData({
     required this.id,
     required this.type,
     required this.status,

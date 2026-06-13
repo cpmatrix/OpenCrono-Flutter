@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 
 import '../../appliances/models/my_device.dart';
-import '../models/opencrono_element.dart';
 import '../services/opencrono_xml_parser.dart';
+import '../../../opencrono/factory/opencrono_element_factory.dart';
+import '../../../opencrono/models/elements/opencrono_element.dart';
 import '../../../core/inceptium/services/inceptium_http_client.dart';
 
 class OpenCronoPage extends StatefulWidget {
@@ -87,16 +88,20 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   }
 
   void _onElementTap(OpenCronoElement element) {
+    final elementType = element.type ?? -1;
+    final elementId = int.tryParse(element.id ?? '') ?? 0;
+    final elementTitle = element.title ?? '';
+
     print(
-      '[OPENCRONO UI] Tap elemento: ${element.title} id=${element.id} type=${element.type}',
+      '[OPENCRONO UI] Tap elemento: $elementTitle id=$elementId type=$elementType',
     );
 
-    if (element.type == 11) {
+    if (elementType == 11) {
       final nextTitle =
-          element.title.trim().isEmpty ? 'Gruppo ${element.id}' : element.title;
+          elementTitle.trim().isEmpty ? 'Gruppo $elementId' : elementTitle;
 
       setState(() {
-        _currentGroupId = element.id;
+        _currentGroupId = elementId;
         _currentGroupTitle = nextTitle;
         _groupStack.add(_GroupState(_currentGroupId, _currentGroupTitle));
       });
@@ -163,17 +168,45 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
           trimmed.length <= 300 ? trimmed : trimmed.substring(0, 300);
       print('[OPENCRONO] Anteprima XML: $preview300');
 
-      final parsedElements = _xmlParser.parseElementsStatus(trimmed);
+      final parsedElementsData = _xmlParser.parseElementsStatus(trimmed);
+      final parsedElements = <OpenCronoElement>[];
+
+      for (final elementData in parsedElementsData) {
+        try {
+          final createdElement = OpenCronoElementFactory.create(
+            type: elementData.type,
+            id: elementData.id.toString(),
+            status: elementData.status,
+            currentValue: elementData.currentValue,
+            title: elementData.title,
+            labelValue: elementData.labelValue,
+            idGroup: elementData.idGroup,
+            currentTextValue: elementData.currentTextValue,
+            userProperty: elementData.userPropertyRaw,
+          );
+
+          print(
+            '[FACTORY] type=${elementData.type} -> ${createdElement.runtimeType} -> ${elementData.title}',
+          );
+          parsedElements.add(createdElement);
+        } on UnsupportedError {
+          print(
+            '[FACTORY] type=${elementData.type} -> Unsupported -> ${elementData.title}',
+          );
+        }
+      }
+
       final homeElements =
           parsedElements.where((element) => element.idGroup == 0).toList();
 
       print('[OPENCRONO] Elementi caricati: ${parsedElements.length}');
 
-      print('[OPENCRONO PARSER] Elementi trovati: ${parsedElements.length}');
+      print(
+          '[OPENCRONO PARSER] Elementi trovati: ${parsedElementsData.length}');
       print('[OPENCRONO PARSER] Home elements: ${homeElements.length}');
       for (final element in homeElements) {
         print(
-          '[OPENCRONO PARSER] Elemento: id=${element.id} type=${element.type} title=${element.title} idGroup=${element.idGroup}',
+          '[OPENCRONO PARSER] Elemento: id=${element.id ?? ''} type=${element.type ?? -1} title=${element.title ?? ''} idGroup=${element.idGroup ?? -1}',
         );
       }
 
@@ -286,7 +319,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                       itemBuilder: (context, index) {
                         final element = visibleElements[index];
                         final active = element.status == 1;
-                        final icon = switch (element.type) {
+                        final icon = switch (element.type ?? -1) {
                           11 => Icons.folder_open,
                           5 => Icons.visibility_outlined,
                           6 => Icons.power_settings_new,
@@ -318,9 +351,9 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        element.title.isEmpty
-                                            ? 'Elemento ${element.id}'
-                                            : element.title,
+                                        (element.title ?? '').isEmpty
+                                            ? 'Elemento ${element.id ?? ''}'
+                                            : (element.title ?? ''),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
