@@ -36,6 +36,7 @@ class OpenCronoInputElement extends OpenCronoElement {
       imageAsset: getImageAsset(),
       title: safeTitle,
       status: status,
+      titleInLeftArea: true,
     );
   }
 

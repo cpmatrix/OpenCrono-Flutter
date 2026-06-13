@@ -74,10 +74,16 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       return;
     }
 
+    final oldGroupId = _currentGroupId;
+
     _groupStack.removeLast();
     final previous = _groupStack.isNotEmpty
         ? _groupStack.last
         : const _GroupState(0, 'Home');
+
+    print(
+      '[OPENCRONO UI] animazione gruppo da $oldGroupId a ${previous.id}',
+    );
 
     setState(() {
       _currentGroupId = previous.id;
@@ -88,6 +94,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   }
 
   void _openGroup(OpenCronoElement element) {
+    final oldGroupId = _currentGroupId;
     final elementId = int.tryParse(element.id ?? '') ?? 0;
     final elementTitle = (element.title ?? '').trim().isEmpty
         ? 'Gruppo $elementId'
@@ -96,6 +103,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     print(
       '[OPENCRONO UI] tap gruppo $elementTitle id=$elementId',
     );
+    print('[OPENCRONO UI] animazione gruppo da $oldGroupId a $elementId');
 
     setState(() {
       _currentGroupId = elementId;
@@ -247,31 +255,30 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFF0B121A),
         appBar: AppBar(
-          leading: IconButton(
+          leading: BackButton(
             onPressed: _goBackPressed,
-            icon: const Icon(Icons.arrow_back),
           ),
-          title: const Text('OpenCrono'),
+          title: Text(
+            widget.device.deviceName.isEmpty
+                ? 'Device senza nome'
+                : widget.device.deviceName,
+          ),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.device.deviceName.isEmpty
-                    ? 'Device senza nome'
-                    : widget.device.deviceName,
-                style: Theme.of(context).textTheme.titleLarge,
+              Center(
+                child: Text(
+                  _currentGroupTitle,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white70,
+                      ),
+                ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                _currentGroupTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white70,
-                    ),
-              ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               if (_elementsError != null)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,61 +308,71 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                   ),
                 )
               else ...[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: _goBackPressed,
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Back'),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final slideAnimation = Tween<Offset>(
+                        begin: const Offset(0.06, 0),
+                        end: Offset.zero,
+                      ).animate(animation);
+
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: slideAnimation,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: visibleElements.isNotEmpty
+                        ? GridView.builder(
+                            key: ValueKey('grid-$_currentGroupId'),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 0.80,
+                            ),
+                            itemCount: visibleElements.length,
+                            itemBuilder: (context, index) {
+                              final element = visibleElements[index];
+                              final title = (element.title ?? '').isEmpty
+                                  ? 'Elemento ${element.id ?? ''}'
+                                  : (element.title ?? '');
+                              print(
+                                '[OPENCRONO UI] uso buildElementWidget per $title',
+                              );
+                              final widget =
+                                  element.buildElementWidget(context);
+
+                              if (element.type == 11) {
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () => _openGroup(element),
+                                  child: widget,
+                                );
+                              }
+
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () => _onNonGroupElementTap(element),
+                                child: widget,
+                              );
+                            },
+                          )
+                        : Center(
+                            key: ValueKey('empty-$_currentGroupId'),
+                            child: const Text(
+                              'Nessun elemento nel gruppo corrente',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                if (visibleElements.isNotEmpty)
-                  Expanded(
-                    child: GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 0.80,
-                      ),
-                      itemCount: visibleElements.length,
-                      itemBuilder: (context, index) {
-                        final element = visibleElements[index];
-                        final title = (element.title ?? '').isEmpty
-                            ? 'Elemento ${element.id ?? ''}'
-                            : (element.title ?? '');
-                        print(
-                          '[OPENCRONO UI] uso buildElementWidget per $title',
-                        );
-                        final widget = element.buildElementWidget(context);
-
-                        if (element.type == 11) {
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () => _openGroup(element),
-                            child: widget,
-                          );
-                        }
-
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => _onNonGroupElementTap(element),
-                          child: widget,
-                        );
-                      },
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'Nessun elemento nel gruppo corrente',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                  ),
               ],
             ],
           ),
