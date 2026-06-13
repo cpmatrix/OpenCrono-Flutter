@@ -1,6 +1,7 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'opencrono_element.dart';
+import 'opencrono_element_widget.dart';
 
 class OpenCronoSwitchElement extends OpenCronoElement {
   const OpenCronoSwitchElement({
@@ -17,14 +18,31 @@ class OpenCronoSwitchElement extends OpenCronoElement {
 
   @override
   String getImageAsset() {
-    // TODO: return real asset path when element rendering is implemented.
-    return '';
+    if (type == 7) {
+      return status == 1
+          ? 'assets/images/elements/inputs/input_on.png'
+          : 'assets/images/elements/inputs/input_off.png';
+    }
+
+    return status == 1
+        ? 'assets/images/elements/switches/switch_on.png'
+        : 'assets/images/elements/switches/switch_off.png';
   }
 
   @override
   Widget buildElementWidget(BuildContext context) {
-    // TODO: replace placeholder widget with actual OpenCrono switch UI.
-    return const SizedBox.shrink();
+    final safeTitle = (title?.trim().isEmpty ?? true)
+        ? 'Elemento ${id ?? ''}'
+        : title!.trim();
+    print(
+      '[OPENCRONO WIDGET] build $runtimeType $safeTitle image=${getImageAsset()}',
+    );
+    return buildOpenCronoElementWidget(
+      context: context,
+      imageAsset: getImageAsset(),
+      title: safeTitle,
+      status: status,
+    );
   }
 
   @override

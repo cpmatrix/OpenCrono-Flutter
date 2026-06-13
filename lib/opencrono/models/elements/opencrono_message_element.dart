@@ -1,6 +1,7 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'opencrono_element.dart';
+import 'opencrono_element_widget.dart';
 
 class OpenCronoMessageElement extends OpenCronoElement {
   const OpenCronoMessageElement({
@@ -17,14 +18,25 @@ class OpenCronoMessageElement extends OpenCronoElement {
 
   @override
   String getImageAsset() {
-    // TODO: return real asset path when element rendering is implemented.
-    return '';
+    return status == 1
+        ? 'assets/images/elements/messages/message_on.png'
+        : 'assets/images/elements/messages/message_off.png';
   }
 
   @override
   Widget buildElementWidget(BuildContext context) {
-    // TODO: replace placeholder widget with actual OpenCrono message UI.
-    return const SizedBox.shrink();
+    final safeTitle = (title?.trim().isEmpty ?? true)
+        ? 'Elemento ${id ?? ''}'
+        : title!.trim();
+    print(
+      '[OPENCRONO WIDGET] build $runtimeType $safeTitle image=${getImageAsset()}',
+    );
+    return buildOpenCronoElementWidget(
+      context: context,
+      imageAsset: getImageAsset(),
+      title: safeTitle,
+      status: status,
+    );
   }
 
   @override

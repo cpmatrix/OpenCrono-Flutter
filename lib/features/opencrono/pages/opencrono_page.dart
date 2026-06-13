@@ -87,34 +87,39 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     _logCurrentGroupState();
   }
 
-  void _onElementTap(OpenCronoElement element) {
-    final elementType = element.type ?? -1;
+  void _openGroup(OpenCronoElement element) {
     final elementId = int.tryParse(element.id ?? '') ?? 0;
-    final elementTitle = element.title ?? '';
+    final elementTitle = (element.title ?? '').trim().isEmpty
+        ? 'Gruppo $elementId'
+        : element.title!.trim();
 
     print(
-      '[OPENCRONO UI] Tap elemento: $elementTitle id=$elementId type=$elementType',
+      '[OPENCRONO UI] tap gruppo $elementTitle id=$elementId',
     );
 
-    if (elementType == 11) {
-      final nextTitle =
-          elementTitle.trim().isEmpty ? 'Gruppo $elementId' : elementTitle;
+    setState(() {
+      _currentGroupId = elementId;
+      _currentGroupTitle = elementTitle;
+      _groupStack.add(_GroupState(_currentGroupId, _currentGroupTitle));
+    });
 
-      setState(() {
-        _currentGroupId = elementId;
-        _currentGroupTitle = nextTitle;
-        _groupStack.add(_GroupState(_currentGroupId, _currentGroupTitle));
-      });
+    print('[OPENCRONO UI] apertura gruppo $elementTitle');
+    print('[OPENCRONO UI] elementi gruppo: ${_visibleElements.length}');
+    _logCurrentGroupState();
+  }
 
-      _logCurrentGroupState();
-      return;
-    }
+  void _onNonGroupElementTap(OpenCronoElement element) {
+    final elementTitle = (element.title ?? '').trim().isEmpty
+        ? 'Elemento ${element.id ?? ''}'
+        : element.title!.trim();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Comando non ancora implementato'),
       ),
     );
+
+    print('[OPENCRONO UI] tap elemento non gruppo $elementTitle');
   }
 
   void _logCurrentGroupState() {
@@ -313,85 +318,31 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                         crossAxisCount: 2,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
-                        childAspectRatio: 1.2,
+                        childAspectRatio: 0.80,
                       ),
                       itemCount: visibleElements.length,
                       itemBuilder: (context, index) {
                         final element = visibleElements[index];
-                        final active = element.status == 1;
-                        final icon = switch (element.type ?? -1) {
-                          11 => Icons.folder_open,
-                          5 => Icons.visibility_outlined,
-                          6 => Icons.power_settings_new,
-                          _ => Icons.widgets_outlined,
-                        };
+                        final title = (element.title ?? '').isEmpty
+                            ? 'Elemento ${element.id ?? ''}'
+                            : (element.title ?? '');
+                        print(
+                          '[OPENCRONO UI] uso buildElementWidget per $title',
+                        );
+                        final widget = element.buildElementWidget(context);
+
+                        if (element.type == 11) {
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _openGroup(element),
+                            child: widget,
+                          );
+                        }
+
                         return InkWell(
                           borderRadius: BorderRadius.circular(14),
-                          onTap: () => _onElementTap(element),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? const Color(0xFF1A3550)
-                                  : const Color(0xFF1A222D),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: active
-                                    ? const Color(0xFF4BA3FF)
-                                    : const Color(0xFF2E3947),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(icon, color: Colors.white),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        (element.title ?? '').isEmpty
-                                            ? 'Elemento ${element.id ?? ''}'
-                                            : (element.title ?? ''),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const Spacer(),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      active
-                                          ? Icons.toggle_on
-                                          : Icons.toggle_off_outlined,
-                                      color: active
-                                          ? const Color(0xFF7CF3A0)
-                                          : Colors.white38,
-                                      size: 24,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: active
-                                            ? const Color(0xFF7CF3A0)
-                                            : const Color(0xFF4A5563),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+                          onTap: () => _onNonGroupElementTap(element),
+                          child: widget,
                         );
                       },
                     ),

@@ -63,6 +63,14 @@ flutter:
 
   assets:
     - assets/images/elements/
+    - assets/images/elements/groups/
+    - assets/images/elements/inputs/
+    - assets/images/elements/switches/
+    - assets/images/elements/timers/
+    - assets/images/elements/monitors/
+    - assets/images/elements/messages/
+    - assets/images/elements/schedulers/
+    - assets/images/elements/generic/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
