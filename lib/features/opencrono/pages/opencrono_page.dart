@@ -8,6 +8,8 @@ import '../services/opencrono_xml_parser.dart';
 import '../../../core/utils/app_log.dart';
 import '../../../opencrono/factory/opencrono_element_factory.dart';
 import '../../../opencrono/models/elements/opencrono_element.dart';
+import '../../../opencrono/models/elements/opencrono_switch_element.dart';
+import '../../../opencrono/models/elements/opencrono_timer_element.dart';
 import '../../../core/inceptium/services/inceptium_http_client.dart';
 
 class OpenCronoPage extends StatefulWidget {
@@ -42,6 +44,9 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   final List<_GroupState> _groupStack = [];
   bool _isRefreshingElements = false;
   Timer? _refreshTimer;
+
+  /// IDs of elements currently processing a tap command to prevent double-tap.
+  final Set<String> _pendingCommandIds = {};
 
   final OpenCronoXmlCacheService _xmlCacheService =
       const OpenCronoXmlCacheService();
@@ -131,6 +136,11 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   }
 
   void _onNonGroupElementTap(OpenCronoElement element) {
+    if (element is OpenCronoSwitchElement || element is OpenCronoTimerElement) {
+      _sendElementCommand(element);
+      return;
+    }
+
     final elementTitle = (element.title ?? '').trim().isEmpty
         ? 'Elemento ${element.id ?? ''}'
         : element.title!.trim();
@@ -142,6 +152,45 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     );
 
     AppLog.d('[OPENCRONO UI] tap elemento non gruppo $elementTitle');
+  }
+
+  Future<void> _sendElementCommand(OpenCronoElement element) async {
+    final id = element.id ?? '';
+    if (id.isEmpty || _pendingCommandIds.contains(id)) return;
+
+    _pendingCommandIds.add(id);
+    try {
+      final status = element.status ?? 0;
+      final command =
+          status == 1 ? 'command=set_deactive?$id' : 'command=set_active?$id';
+
+      AppLog.d(
+          '[OPENCRONO COMMAND] Tap elemento ${element.title} id=$id status=$status');
+      AppLog.d('[OPENCRONO COMMAND] Invio: $command');
+
+      final commandB64 = 'cmd:${base64Encode(utf8.encode(command))}';
+      final params =
+          'serialdevice=${widget.device.serialDevice}::softwarecode=${widget.device.softwareCode}::command_64=$commandB64';
+
+      final response = await widget.client.executeMethod(
+        _myDeviceClass,
+        _executeCommandToRemoteClientMethod,
+        params,
+      );
+
+      final trimmed = response.trim();
+      AppLog.d('[OPENCRONO COMMAND] Risposta: $trimmed');
+
+      if (!mounted) return;
+
+      if (trimmed.isEmpty || trimmed == 'ERROR') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comando non riuscito')),
+        );
+      }
+    } finally {
+      _pendingCommandIds.remove(id);
+    }
   }
 
   void _logCurrentGroupState() {
