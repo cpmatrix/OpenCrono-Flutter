@@ -1,6 +1,8 @@
+import 'package:flutter/widgets.dart';
+
 import 'opencrono_element.dart';
 
-abstract class OpenCronoInputElement extends OpenCronoElement {
+class OpenCronoInputElement extends OpenCronoElement {
   const OpenCronoInputElement({
     super.id,
     super.type,
@@ -12,4 +14,19 @@ abstract class OpenCronoInputElement extends OpenCronoElement {
     super.currentTextValue,
     super.userProperty,
   });
+
+  @override
+  String getImageAsset() {
+    // TODO: return real asset path when element rendering is implemented.
+    return '';
+  }
+
+  @override
+  Widget buildElementWidget(BuildContext context) {
+    // TODO: replace placeholder widget with actual OpenCrono input UI.
+    return const SizedBox.shrink();
+  }
+
+  @override
+  bool get isClickable => false;
 }

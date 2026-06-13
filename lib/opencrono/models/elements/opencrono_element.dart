@@ -2,12 +2,12 @@ import 'package:flutter/widgets.dart';
 
 abstract class OpenCronoElement {
   final String? id;
-  final String? type;
-  final String? status;
-  final String? currentValue;
+  final int? type;
+  final int? status;
+  final double? currentValue;
   final String? title;
   final String? labelValue;
-  final String? idGroup;
+  final int? idGroup;
   final String? currentTextValue;
   final String? userProperty;
 

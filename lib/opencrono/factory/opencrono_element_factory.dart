@@ -1,22 +1,35 @@
 import '../models/elements/opencrono_element.dart';
+import '../models/elements/opencrono_group_element.dart';
 
 class OpenCronoElementFactory {
   const OpenCronoElementFactory._();
 
   static OpenCronoElement create({
-    required String type,
+    required int type,
     String? id,
-    String? status,
-    String? currentValue,
+    int? status,
+    double? currentValue,
     String? title,
     String? labelValue,
-    String? idGroup,
+    int? idGroup,
     String? currentTextValue,
     String? userProperty,
   }) {
-    // TODO: implement TYPE mapping and instantiate specialized OpenCronoElement subclasses.
-    throw UnimplementedError(
-      'OpenCronoElementFactory.create is not implemented yet for type: $type',
-    );
+    switch (type) {
+      case 11:
+        return OpenCronoGroupElement(
+          id: id,
+          type: type,
+          status: status,
+          currentValue: currentValue,
+          title: title,
+          labelValue: labelValue,
+          idGroup: idGroup,
+          currentTextValue: currentTextValue,
+          userProperty: userProperty,
+        );
+      default:
+        throw UnsupportedError('Unsupported OpenCrono TYPE: $type');
+    }
   }
 }
