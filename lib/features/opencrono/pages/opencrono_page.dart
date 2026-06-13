@@ -45,8 +45,8 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   bool _isRefreshingElements = false;
   Timer? _refreshTimer;
 
-  /// IDs of elements currently processing a tap command to prevent double-tap.
-  final Set<String> _pendingCommandIds = {};
+  /// Pending commands by element id, to support concurrent commands.
+  final Map<int, PendingCommandInfo> _pendingCommandsByElementId = {};
 
   final OpenCronoXmlCacheService _xmlCacheService =
       const OpenCronoXmlCacheService();
@@ -155,12 +155,23 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   }
 
   Future<void> _sendElementCommand(OpenCronoElement element) async {
-    final id = element.id ?? '';
-    if (id.isEmpty || _pendingCommandIds.contains(id)) return;
+    final id = int.tryParse(element.id ?? '');
+    if (id == null || _pendingCommandsByElementId.containsKey(id)) {
+      return;
+    }
 
-    _pendingCommandIds.add(id);
+    final currentStatus = element.status ?? 0;
+    final expectedStatus = currentStatus == 1 ? 0 : 1;
+
+    setState(() {
+      _pendingCommandsByElementId[id] = PendingCommandInfo(
+        expectedStatus: expectedStatus,
+        startedAt: DateTime.now(),
+      );
+    });
+
     try {
-      final status = element.status ?? 0;
+      final status = currentStatus;
       final command =
           status == 1 ? 'command=set_deactive?$id' : 'command=set_active?$id';
 
@@ -184,12 +195,22 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       if (!mounted) return;
 
       if (trimmed.isEmpty || trimmed == 'ERROR') {
+        setState(() {
+          _pendingCommandsByElementId.remove(id);
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Comando non riuscito')),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _pendingCommandsByElementId.remove(id);
+      });
+      AppLog.e('[OPENCRONO COMMAND] Errore invio comando id=$id: $e');
     } finally {
-      _pendingCommandIds.remove(id);
+      AppLog.d(
+          '[OPENCRONO COMMAND] Pending attivi: ${_pendingCommandsByElementId.length}');
     }
   }
 
@@ -375,6 +396,17 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
           if (key.isNotEmpty) {
             _elementsById[key] = e;
             updatedCount++;
+
+            final id = int.tryParse(key);
+            if (id != null) {
+              final pending = _pendingCommandsByElementId[id];
+              if (pending != null && e.status == pending.expectedStatus) {
+                _pendingCommandsByElementId.remove(id);
+                AppLog.d(
+                  '[OPENCRONO COMMAND] Conferma XML id=$id status=${e.status} in ${DateTime.now().difference(pending.startedAt).inMilliseconds}ms',
+                );
+              }
+            }
           }
         }
         _elementsError = null;
@@ -498,10 +530,26 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                                 );
                               }
 
+                              final elementId = int.tryParse(element.id ?? '');
+                              final isPending = elementId != null &&
+                                  _pendingCommandsByElementId
+                                      .containsKey(elementId);
+
                               return InkWell(
                                 borderRadius: BorderRadius.circular(14),
                                 onTap: () => _onNonGroupElementTap(element),
-                                child: widget,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    widget,
+                                    if (isPending)
+                                      const Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: _PendingCommandBadge(),
+                                      ),
+                                  ],
+                                ),
                               );
                             },
                           )
@@ -528,4 +576,65 @@ class _GroupState {
 
   final int id;
   final String title;
+}
+
+class PendingCommandInfo {
+  const PendingCommandInfo({
+    required this.expectedStatus,
+    required this.startedAt,
+  });
+
+  final int expectedStatus;
+  final DateTime startedAt;
+}
+
+class _PendingCommandBadge extends StatefulWidget {
+  const _PendingCommandBadge();
+
+  @override
+  State<_PendingCommandBadge> createState() => _PendingCommandBadgeState();
+}
+
+class _PendingCommandBadgeState extends State<_PendingCommandBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+      lowerBound: 0.35,
+      upperBound: 1,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller,
+      child: Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFEB3B),
+          borderRadius: BorderRadius.circular(2),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x80FFEB3B),
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
