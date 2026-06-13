@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../../appliances/models/my_device.dart';
 import '../services/opencrono_xml_cache_service.dart';
 import '../services/opencrono_xml_parser.dart';
+import '../../../core/utils/app_log.dart';
 import '../../../opencrono/factory/opencrono_element_factory.dart';
 import '../../../opencrono/models/elements/opencrono_element.dart';
 import '../../../core/inceptium/services/inceptium_http_client.dart';
@@ -33,7 +34,9 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
 
   bool _isLoadingElements = false;
   String? _elementsError;
-  List<OpenCronoElement> _allElements = const [];
+
+  /// Master map id -> element, populated from full XML on open and merged during partial refreshes.
+  final Map<String, OpenCronoElement> _elementsById = {};
   int _currentGroupId = 0;
   String _currentGroupTitle = 'Home';
   final List<_GroupState> _groupStack = [];
@@ -47,19 +50,19 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   @override
   void initState() {
     super.initState();
-    print('[OPENCRONO] Auto caricamento elementi');
+    AppLog.d('[OPENCRONO] Auto caricamento elementi');
     _loadElementsStatus();
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
-    print('[OPENCRONO REFRESH] Stop refresh');
+    AppLog.d('[OPENCRONO REFRESH] Stop refresh');
     super.dispose();
   }
 
   List<OpenCronoElement> get _visibleElements {
-    return _allElements
+    return _elementsById.values
         .where((element) => element.idGroup == _currentGroupId)
         .toList(growable: false);
   }
@@ -94,9 +97,8 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
         ? _groupStack.last
         : const _GroupState(0, 'Home');
 
-    print(
-      '[OPENCRONO UI] animazione gruppo da $oldGroupId a ${previous.id}',
-    );
+    AppLog.d(
+        '[OPENCRONO UI] animazione gruppo da $oldGroupId a ${previous.id}');
 
     setState(() {
       _currentGroupId = previous.id;
@@ -113,10 +115,8 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
         ? 'Gruppo $elementId'
         : element.title!.trim();
 
-    print(
-      '[OPENCRONO UI] tap gruppo $elementTitle id=$elementId',
-    );
-    print('[OPENCRONO UI] animazione gruppo da $oldGroupId a $elementId');
+    AppLog.d('[OPENCRONO UI] tap gruppo $elementTitle id=$elementId');
+    AppLog.d('[OPENCRONO UI] animazione gruppo da $oldGroupId a $elementId');
 
     setState(() {
       _currentGroupId = elementId;
@@ -124,9 +124,10 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       _groupStack.add(_GroupState(_currentGroupId, _currentGroupTitle));
     });
 
-    print('[OPENCRONO UI] apertura gruppo $elementTitle');
-    print('[OPENCRONO UI] elementi gruppo: ${_visibleElements.length}');
+    AppLog.d('[OPENCRONO UI] apertura gruppo $elementTitle');
+    AppLog.d('[OPENCRONO UI] elementi gruppo: ${_visibleElements.length}');
     _logCurrentGroupState();
+    _refreshGroupNow(elementId);
   }
 
   void _onNonGroupElementTap(OpenCronoElement element) {
@@ -140,14 +141,14 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       ),
     );
 
-    print('[OPENCRONO UI] tap elemento non gruppo $elementTitle');
+    AppLog.d('[OPENCRONO UI] tap elemento non gruppo $elementTitle');
   }
 
   void _logCurrentGroupState() {
     final shown = _visibleElements.length;
-    print(
+    AppLog.d(
         '[OPENCRONO UI] Gruppo corrente: $_currentGroupTitle ($_currentGroupId)');
-    print('[OPENCRONO UI] Elementi mostrati: $shown');
+    AppLog.d('[OPENCRONO UI] Elementi mostrati: $shown');
   }
 
   Future<void> _loadElementsStatus() async {
@@ -161,23 +162,23 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     });
 
     try {
-      print('[OPENCRONO] Caricamento elementi');
+      AppLog.d('[OPENCRONO] Caricamento elementi');
 
       final hasCache = await _xmlCacheService.hasCachedXml(widget.device);
       if (hasCache) {
-        print(
-          '[OPENCRONO CACHE] Cache trovata per ${widget.device.deviceName}',
-        );
+        AppLog.d(
+            '[OPENCRONO CACHE] Cache trovata per ${widget.device.deviceName}');
         final cachedXml = await _xmlCacheService.readCachedXml(widget.device);
         final trimmedCache = cachedXml?.trim() ?? '';
         if (trimmedCache.isNotEmpty) {
           final cachedElements = _buildElementsFromXml(trimmedCache);
-          print(
-            '[OPENCRONO CACHE] Elementi caricati da cache: ${cachedElements.length}',
-          );
+          AppLog.d(
+              '[OPENCRONO CACHE] Elementi caricati da cache: ${cachedElements.length}');
           if (mounted) {
             setState(() {
-              _allElements = cachedElements;
+              _elementsById
+                ..clear()
+                ..addAll({for (final e in cachedElements) e.id ?? '': e});
               _currentGroupId = 0;
               _currentGroupTitle = 'Home';
               _groupStack
@@ -190,13 +191,10 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
         }
       }
 
-      final serverXml = await _fetchElementsXml();
+      final serverXml = await _fetchElementsXml(null);
       if (serverXml == null) {
-        if (!mounted) {
-          return;
-        }
-
-        if (_allElements.isEmpty) {
+        if (!mounted) return;
+        if (_elementsById.isEmpty) {
           setState(() {
             _elementsError = 'Risposta vuota o ERROR';
             _isLoadingElements = false;
@@ -206,17 +204,17 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
         return;
       }
 
-      print('[OPENCRONO SYNC] XML server ricevuto');
+      AppLog.d('[OPENCRONO SYNC] XML server ricevuto');
       await _xmlCacheService.saveCachedXml(widget.device, serverXml);
-      print('[OPENCRONO CACHE] Cache aggiornata');
+      AppLog.d('[OPENCRONO CACHE] Cache aggiornata');
 
       final parsedElements = _buildElementsFromXml(serverXml);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
-        _allElements = parsedElements;
+        _elementsById
+          ..clear()
+          ..addAll({for (final e in parsedElements) e.id ?? '': e});
         _currentGroupId = 0;
         _currentGroupTitle = 'Home';
         _groupStack
@@ -228,9 +226,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       _logCurrentGroupState();
       _startPeriodicRefresh();
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _elementsError = 'Errore caricamento elementi: $e';
         _isLoadingElements = false;
@@ -238,10 +234,12 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
     }
   }
 
-  Future<String?> _fetchElementsXml() async {
-    const openCronoCommand = 'command=get?elements_status';
-    final commandB64 = 'cmd:${base64Encode(utf8.encode(openCronoCommand))}';
-    print('[OPENCRONO] commandB64: $commandB64');
+  Future<String?> _fetchElementsXml(int? groupId) async {
+    final command = groupId == null
+        ? 'command=get?elements_status'
+        : 'command=get?elements_status::$groupId';
+    final commandB64 = 'cmd:${base64Encode(utf8.encode(command))}';
+    AppLog.d('[OPENCRONO] Comando: $command');
 
     final params =
         'serialdevice=${widget.device.serialDevice}::softwarecode=${widget.device.softwareCode}::command_64=$commandB64';
@@ -257,10 +255,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       return null;
     }
 
-    print('[OPENCRONO] Risposta lunga: ${trimmed.length} caratteri');
-    final preview300 =
-        trimmed.length <= 300 ? trimmed : trimmed.substring(0, 300);
-    print('[OPENCRONO] Anteprima XML: $preview300');
+    AppLog.d('[OPENCRONO] Risposta lunga: ${trimmed.length} caratteri');
     return trimmed;
   }
 
@@ -282,14 +277,12 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
           userProperty: elementData.userPropertyRaw,
         );
 
-        print(
-          '[FACTORY] type=${elementData.type} -> ${createdElement.runtimeType} -> ${elementData.title}',
-        );
+        AppLog.d(
+            '[FACTORY] type=${elementData.type} -> ${createdElement.runtimeType} -> ${elementData.title}');
         parsedElements.add(createdElement);
       } on UnsupportedError {
-        print(
-          '[FACTORY] type=${elementData.type} -> Unsupported -> ${elementData.title}',
-        );
+        AppLog.w(
+            '[FACTORY] type=${elementData.type} -> Unsupported -> ${elementData.title}');
       }
     }
 
@@ -297,45 +290,49 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   }
 
   void _startPeriodicRefresh() {
-    if (_refreshTimer != null) {
-      return;
-    }
-
-    print('[OPENCRONO REFRESH] Avvio refresh periodico 1500ms');
+    if (_refreshTimer != null) return;
+    AppLog.d('[OPENCRONO REFRESH] Avvio refresh periodico 1500ms');
     _refreshTimer = Timer.periodic(
       const Duration(milliseconds: 1500),
-      (_) => _refreshElementsStatus(),
+      (_) => _refreshGroupElements(_currentGroupId),
     );
   }
 
-  Future<void> _refreshElementsStatus() async {
-    if (_isRefreshingElements || !mounted) {
-      return;
-    }
+  Future<void> _refreshGroupNow(int groupId) async {
+    await _refreshGroupElements(groupId);
+  }
+
+  Future<void> _refreshGroupElements(int groupId) async {
+    if (_isRefreshingElements || !mounted) return;
 
     _isRefreshingElements = true;
     try {
-      print('[OPENCRONO REFRESH] Aggiornamento XML');
-      final serverXml = await _fetchElementsXml();
-      if (serverXml == null || !mounted) {
-        return;
-      }
+      AppLog.d('[OPENCRONO REFRESH] Gruppo corrente: $groupId');
+      AppLog.d(
+          '[OPENCRONO REFRESH] Comando: command=get?elements_status::$groupId');
 
-      await _xmlCacheService.saveCachedXml(widget.device, serverXml);
-      print('[OPENCRONO CACHE] Cache aggiornata');
+      final xml = await _fetchElementsXml(groupId);
+      if (xml == null || !mounted) return;
 
-      final updatedElements = _buildElementsFromXml(serverXml);
-      if (!mounted) {
-        return;
-      }
+      final updated = _buildElementsFromXml(xml);
+      AppLog.d('[OPENCRONO REFRESH] Elementi ricevuti: ${updated.length}');
 
+      if (!mounted) return;
+
+      int updatedCount = 0;
       setState(() {
-        _allElements = updatedElements;
+        for (final e in updated) {
+          final key = e.id ?? '';
+          if (key.isNotEmpty) {
+            _elementsById[key] = e;
+            updatedCount++;
+          }
+        }
         _elementsError = null;
       });
 
-      print(
-          '[OPENCRONO REFRESH] Elementi aggiornati: ${updatedElements.length}');
+      AppLog.d(
+          '[OPENCRONO REFRESH] Elementi aggiornati nella mappa globale: $updatedCount');
     } finally {
       _isRefreshingElements = false;
     }
@@ -438,7 +435,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
                               final title = (element.title ?? '').isEmpty
                                   ? 'Elemento ${element.id ?? ''}'
                                   : (element.title ?? '');
-                              print(
+                              AppLog.d(
                                 '[OPENCRONO UI] uso buildElementWidget per $title',
                               );
                               final widget =
