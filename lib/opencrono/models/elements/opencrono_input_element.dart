@@ -45,6 +45,7 @@ class OpenCronoInputElement extends OpenCronoElement {
   }
 
   String? _buildValueLabel() {
+    final symbol = labelValue?.trim() ?? '';
     final numeric = currentValue;
     if (numeric == null || numeric == 0) {
       return null;
@@ -52,7 +53,11 @@ class OpenCronoInputElement extends OpenCronoElement {
 
     final normalizedValue =
         numeric % 1 == 0 ? numeric.toInt().toString() : numeric.toString();
-    final symbol = labelValue?.trim() ?? '';
+
+    if (symbol == 'mV') {
+      return normalizedValue;
+    }
+
     return symbol.isEmpty ? normalizedValue : '$normalizedValue $symbol';
   }
 

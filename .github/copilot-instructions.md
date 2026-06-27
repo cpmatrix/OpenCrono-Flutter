@@ -101,6 +101,7 @@ Aggiornamento incrementale 2026-06-27 (OpenCrono UI/refresh):
 - Pending command mantenuto su conferma stato, con fallback automatico a 5 secondi in assenza di variazione (caso timer brevi incluso).
 - Visualizzazione valori ingresso resa robusta durante refresh periodico (gestione coerente di valore testuale, valore numerico anche 0 e fallback su status).
 - Refresh periodico dinamico su lifecycle: 800 ms quando l'app e in primo piano, 1500 ms negli altri stati.
+- Regola di rendering ingresso: se labelValue (da XML label_value) e esattamente "mV", viene nascosta solo l'unita e resta visibile il valore numerico.
 
 ## Gestione Networking
 Client principali presenti:
