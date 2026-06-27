@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/app_log.dart';
 import 'opencrono_element.dart';
 import 'opencrono_element_widget.dart';
 
@@ -29,8 +30,8 @@ class OpenCronoInputElement extends OpenCronoElement {
         ? 'Elemento ${id ?? ''}'
         : title!.trim();
     final valueLabel = _buildValueLabel();
-    print(
-      '[OPENCRONO WIDGET] build $runtimeType $safeTitle image=${getImageAsset()}',
+    AppLog.d(
+      '[OPENCRONO VALUE] $safeTitle value=$currentValue label=$labelValue',
     );
     return buildOpenCronoElementWidget(
       context: context,
@@ -39,31 +40,18 @@ class OpenCronoInputElement extends OpenCronoElement {
       status: status,
       titleInLeftArea: true,
       bottomCenterValue: valueLabel,
-      bottomCenterBottom: 16,
+      bottomCenterBottom: 50,
     );
   }
 
   String? _buildValueLabel() {
-    final textValue = currentTextValue?.trim() ?? '';
-    if (textValue.isNotEmpty) {
-      final symbol = labelValue?.trim() ?? '';
-      return symbol.isEmpty ? textValue : '$textValue $symbol';
-    }
-
     final numeric = currentValue;
-    if (numeric != null) {
-      final normalizedValue =
-          numeric % 1 == 0 ? numeric.toInt().toString() : numeric.toString();
-      final symbol = labelValue?.trim() ?? '';
-      return symbol.isEmpty ? normalizedValue : '$normalizedValue $symbol';
-    }
-
-    final statusValue = status;
-    if (statusValue == null) {
+    if (numeric == null || numeric == 0) {
       return null;
     }
 
-    final normalizedValue = statusValue.toString();
+    final normalizedValue =
+        numeric % 1 == 0 ? numeric.toInt().toString() : numeric.toString();
     final symbol = labelValue?.trim() ?? '';
     return symbol.isEmpty ? normalizedValue : '$normalizedValue $symbol';
   }

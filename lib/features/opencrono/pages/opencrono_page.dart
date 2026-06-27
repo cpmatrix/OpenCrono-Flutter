@@ -38,7 +38,7 @@ class _OpenCronoPageState extends State<OpenCronoPage>
   static const Duration _foregroundRefreshInterval =
       Duration(milliseconds: 800);
   static const Duration _backgroundRefreshInterval =
-      Duration(milliseconds: 1500);
+      Duration(milliseconds: 2500);
 
   bool _isLoadingElements = false;
   String? _elementsError;

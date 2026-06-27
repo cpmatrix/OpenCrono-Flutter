@@ -10,6 +10,12 @@ Widget buildOpenCronoElementWidget({
   String? bottomCenterValue,
   double bottomCenterBottom = 10,
 }) {
+  final normalizedBottomValue = (bottomCenterValue ?? '').trim();
+  final shouldShowBottomValue = normalizedBottomValue.isNotEmpty &&
+      !_isZeroValueLabel(normalizedBottomValue);
+  final effectiveBottomCenterBottom =
+      bottomCenterBottom < 20 ? 20.0 : bottomCenterBottom;
+
   return ClipRRect(
     borderRadius: BorderRadius.circular(16),
     child: LayoutBuilder(
@@ -108,13 +114,13 @@ Widget buildOpenCronoElementWidget({
                   ),
                 ),
               ),
-            if ((bottomCenterValue ?? '').trim().isNotEmpty)
+            if (shouldShowBottomValue)
               Positioned(
                 left: 10,
                 right: 10,
-                bottom: bottomCenterBottom,
+                bottom: effectiveBottomCenterBottom,
                 child: Text(
-                  bottomCenterValue!.trim(),
+                  normalizedBottomValue,
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -137,4 +143,19 @@ Widget buildOpenCronoElementWidget({
       },
     ),
   );
+}
+
+bool _isZeroValueLabel(String valueLabel) {
+  final parts = valueLabel.trim().split(RegExp(r'\s+'));
+  if (parts.isEmpty) {
+    return true;
+  }
+
+  final numericPart = parts.first.replaceAll(',', '.');
+  final parsedNumeric = double.tryParse(numericPart);
+  if (parsedNumeric == null) {
+    return false;
+  }
+
+  return parsedNumeric == 0;
 }
