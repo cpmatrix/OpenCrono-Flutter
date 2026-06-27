@@ -8,6 +8,7 @@ Widget buildOpenCronoElementWidget({
   bool titleAboveImage = false,
   bool titleInLeftArea = false,
   String? bottomCenterValue,
+  double bottomCenterBottom = 10,
 }) {
   return ClipRRect(
     borderRadius: BorderRadius.circular(16),
@@ -111,7 +112,7 @@ Widget buildOpenCronoElementWidget({
               Positioned(
                 left: 10,
                 right: 10,
-                bottom: 10,
+                bottom: bottomCenterBottom,
                 child: Text(
                   bottomCenterValue!.trim(),
                   textAlign: TextAlign.center,

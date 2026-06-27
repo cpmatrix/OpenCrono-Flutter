@@ -93,7 +93,14 @@ Nota stato attuale codice:
   - mappa globale elementi per id
   - stack gruppi navigazione
   - pending command per elemento
-  - timer refresh periodico ogni 1500 ms
+  - timeout fallback pending command: 5 secondi (rimozione automatica indicatore se non arriva conferma stato)
+  - timer refresh periodico: 800 ms in foreground, 1500 ms fuori foreground
+
+Aggiornamento incrementale 2026-06-27 (OpenCrono UI/refresh):
+- Valore ingressi digitali/analogici riallineato verticalmente verso l'alto per migliore centratura grafica.
+- Pending command mantenuto su conferma stato, con fallback automatico a 5 secondi in assenza di variazione (caso timer brevi incluso).
+- Visualizzazione valori ingresso resa robusta durante refresh periodico (gestione coerente di valore testuale, valore numerico anche 0 e fallback su status).
+- Refresh periodico dinamico su lifecycle: 800 ms quando l'app e in primo piano, 1500 ms negli altri stati.
 
 ## Gestione Networking
 Client principali presenti:
@@ -126,7 +133,7 @@ Pattern reale:
 - In ogni PR/patch ricordare esplicitamente l aggiornamento documentazione tecnica .github.
 
 ## Prestazioni
-- Refresh OpenCrono ogni 1500 ms con guardia _isRefreshingElements.
+- Refresh OpenCrono dinamico: 800 ms in foreground, 1500 ms fuori foreground, con guardia _isRefreshingElements.
 - Merge incrementale elementi ricevuti nel refresh parziale.
 - Cache XML per device su file locale in documents directory.
 - Parsing XML in memoria con mapping attributi string->tipo.

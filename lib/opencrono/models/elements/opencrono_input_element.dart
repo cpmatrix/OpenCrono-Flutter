@@ -39,23 +39,31 @@ class OpenCronoInputElement extends OpenCronoElement {
       status: status,
       titleInLeftArea: true,
       bottomCenterValue: valueLabel,
+      bottomCenterBottom: 16,
     );
   }
 
   String? _buildValueLabel() {
     final textValue = currentTextValue?.trim() ?? '';
-    if (textValue.isNotEmpty && textValue != '0') {
+    if (textValue.isNotEmpty) {
       final symbol = labelValue?.trim() ?? '';
       return symbol.isEmpty ? textValue : '$textValue $symbol';
     }
 
-    final numeric = currentValue ?? 0;
-    if (numeric == 0) {
+    final numeric = currentValue;
+    if (numeric != null) {
+      final normalizedValue =
+          numeric % 1 == 0 ? numeric.toInt().toString() : numeric.toString();
+      final symbol = labelValue?.trim() ?? '';
+      return symbol.isEmpty ? normalizedValue : '$normalizedValue $symbol';
+    }
+
+    final statusValue = status;
+    if (statusValue == null) {
       return null;
     }
 
-    final normalizedValue =
-        numeric % 1 == 0 ? numeric.toInt().toString() : numeric.toString();
+    final normalizedValue = statusValue.toString();
     final symbol = labelValue?.trim() ?? '';
     return symbol.isEmpty ? normalizedValue : '$normalizedValue $symbol';
   }

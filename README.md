@@ -24,3 +24,12 @@ Per compatibilita con la versione Flutter corrente, la toolchain Android e stata
 - Kotlin Android Plugin: 1.9.24
 
 Questa migrazione mantiene invariati namespace, applicationId, versionCode, versionName e signing config.
+
+## Aggiornamenti UI e Refresh Elementi (2026-06-27)
+
+Sono state applicate correzioni incrementali alla UI OpenCrono e alla logica di refresh, senza modificare architettura, parser XML o comunicazione Inceptium:
+
+- Ingressi analogici e digitali: valore (numero + unita) riallineato verticalmente verso l'alto per migliorare la centratura nell'area grafica.
+- Pending command (quadratino giallo): introdotto timeout di fallback a 5 secondi. Se non arriva variazione stato, l'indicatore viene comunque rimosso automaticamente.
+- Aggiornamento valori ingresso: resa piu robusta la visualizzazione del valore ricevuto in refresh (inclusi valori 0 e fallback su status quando il valore numerico non e presente), per mantenere il ridisegno coerente con gli aggiornamenti Inceptium.
+- Refresh periodico OpenCrono dinamico su lifecycle: 800 ms quando l'app e in primo piano, 1500 ms fuori foreground.

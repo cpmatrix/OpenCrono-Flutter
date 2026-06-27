@@ -28,11 +28,17 @@ class OpenCronoPage extends StatefulWidget {
   State<OpenCronoPage> createState() => _OpenCronoPageState();
 }
 
-class _OpenCronoPageState extends State<OpenCronoPage> {
+class _OpenCronoPageState extends State<OpenCronoPage>
+    with WidgetsBindingObserver {
   static const _myDeviceClass =
       'com.incappmyshelteradmin.data.mydevice.MyDevice';
   static const _executeCommandToRemoteClientMethod =
       '_executeCommandToRemoteClient';
+  static const Duration _pendingCommandFallbackTimeout = Duration(seconds: 5);
+  static const Duration _foregroundRefreshInterval =
+      Duration(milliseconds: 800);
+  static const Duration _backgroundRefreshInterval =
+      Duration(milliseconds: 1500);
 
   bool _isLoadingElements = false;
   String? _elementsError;
@@ -44,9 +50,11 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   final List<_GroupState> _groupStack = [];
   bool _isRefreshingElements = false;
   Timer? _refreshTimer;
+  bool _isAppInForeground = true;
 
   /// Pending commands by element id, to support concurrent commands.
   final Map<int, PendingCommandInfo> _pendingCommandsByElementId = {};
+  final Map<int, Timer> _pendingCommandTimeoutsByElementId = {};
 
   final OpenCronoXmlCacheService _xmlCacheService =
       const OpenCronoXmlCacheService();
@@ -55,15 +63,90 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    _isAppInForeground =
+        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
     AppLog.d('[OPENCRONO] Auto caricamento elementi');
     _loadElementsStatus();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wasForeground = _isAppInForeground;
+    _isAppInForeground = state == AppLifecycleState.resumed;
+
+    if (wasForeground != _isAppInForeground) {
+      _restartPeriodicRefreshIfRunning();
+      final mode = _isAppInForeground ? 'foreground' : 'background';
+      AppLog.d(
+        '[OPENCRONO REFRESH] Cambio lifecycle: $mode (${_currentRefreshInterval.inMilliseconds}ms)',
+      );
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
+    for (final timer in _pendingCommandTimeoutsByElementId.values) {
+      timer.cancel();
+    }
+    _pendingCommandTimeoutsByElementId.clear();
     AppLog.d('[OPENCRONO REFRESH] Stop refresh');
     super.dispose();
+  }
+
+  Duration get _currentRefreshInterval => _isAppInForeground
+      ? _foregroundRefreshInterval
+      : _backgroundRefreshInterval;
+
+  void _restartPeriodicRefreshIfRunning() {
+    if (_refreshTimer == null) {
+      return;
+    }
+
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+    _startPeriodicRefresh();
+  }
+
+  void _removePendingCommandState(int id) {
+    _pendingCommandTimeoutsByElementId.remove(id)?.cancel();
+    _pendingCommandsByElementId.remove(id);
+  }
+
+  void _removePendingCommand(int id, {bool notifyUi = true, String? reason}) {
+    if (!_pendingCommandsByElementId.containsKey(id)) {
+      return;
+    }
+
+    if (notifyUi && mounted) {
+      setState(() {
+        _removePendingCommandState(id);
+      });
+    } else {
+      _removePendingCommandState(id);
+    }
+
+    if (reason != null && reason.isNotEmpty) {
+      AppLog.d('[OPENCRONO COMMAND] Pending rimosso id=$id motivo=$reason');
+    }
+  }
+
+  void _schedulePendingCommandTimeout(int id) {
+    _pendingCommandTimeoutsByElementId[id]?.cancel();
+    _pendingCommandTimeoutsByElementId[id] = Timer(
+      _pendingCommandFallbackTimeout,
+      () {
+        if (!mounted || !_pendingCommandsByElementId.containsKey(id)) {
+          _pendingCommandTimeoutsByElementId.remove(id)?.cancel();
+          return;
+        }
+
+        _removePendingCommand(id, reason: 'timeout_5s');
+      },
+    );
   }
 
   List<OpenCronoElement> get _visibleElements {
@@ -169,6 +252,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
         startedAt: DateTime.now(),
       );
     });
+    _schedulePendingCommandTimeout(id);
 
     try {
       final status = currentStatus;
@@ -195,18 +279,14 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
       if (!mounted) return;
 
       if (trimmed.isEmpty || trimmed == 'ERROR') {
-        setState(() {
-          _pendingCommandsByElementId.remove(id);
-        });
+        _removePendingCommand(id, reason: 'command_error_response');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Comando non riuscito')),
         );
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _pendingCommandsByElementId.remove(id);
-      });
+      _removePendingCommand(id, reason: 'command_exception');
       AppLog.e('[OPENCRONO COMMAND] Errore invio comando id=$id: $e');
     } finally {
       AppLog.d(
@@ -361,9 +441,11 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
 
   void _startPeriodicRefresh() {
     if (_refreshTimer != null) return;
-    AppLog.d('[OPENCRONO REFRESH] Avvio refresh periodico 1500ms');
+    AppLog.d(
+      '[OPENCRONO REFRESH] Avvio refresh periodico ${_currentRefreshInterval.inMilliseconds}ms',
+    );
     _refreshTimer = Timer.periodic(
-      const Duration(milliseconds: 1500),
+      _currentRefreshInterval,
       (_) => _refreshGroupElements(_currentGroupId),
     );
   }
@@ -401,7 +483,7 @@ class _OpenCronoPageState extends State<OpenCronoPage> {
             if (id != null) {
               final pending = _pendingCommandsByElementId[id];
               if (pending != null && e.status == pending.expectedStatus) {
-                _pendingCommandsByElementId.remove(id);
+                _removePendingCommandState(id);
                 AppLog.d(
                   '[OPENCRONO COMMAND] Conferma XML id=$id status=${e.status} in ${DateTime.now().difference(pending.startedAt).inMilliseconds}ms',
                 );
