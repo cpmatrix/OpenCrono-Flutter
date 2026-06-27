@@ -7,6 +7,7 @@ Widget buildOpenCronoElementWidget({
   required int? status,
   bool titleAboveImage = false,
   bool titleInLeftArea = false,
+  String? bottomCenterValue,
 }) {
   return ClipRRect(
     borderRadius: BorderRadius.circular(16),
@@ -103,6 +104,30 @@ Widget buildOpenCronoElementWidget({
                         ),
                       ],
                     ),
+                  ),
+                ),
+              ),
+            if ((bottomCenterValue ?? '').trim().isNotEmpty)
+              Positioned(
+                left: 10,
+                right: 10,
+                bottom: 10,
+                child: Text(
+                  bottomCenterValue!.trim(),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black87,
+                        blurRadius: 6,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
                   ),
                 ),
               ),

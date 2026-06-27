@@ -28,6 +28,7 @@ class OpenCronoInputElement extends OpenCronoElement {
     final safeTitle = (title?.trim().isEmpty ?? true)
         ? 'Elemento ${id ?? ''}'
         : title!.trim();
+    final valueLabel = _buildValueLabel();
     print(
       '[OPENCRONO WIDGET] build $runtimeType $safeTitle image=${getImageAsset()}',
     );
@@ -37,7 +38,26 @@ class OpenCronoInputElement extends OpenCronoElement {
       title: safeTitle,
       status: status,
       titleInLeftArea: true,
+      bottomCenterValue: valueLabel,
     );
+  }
+
+  String? _buildValueLabel() {
+    final textValue = currentTextValue?.trim() ?? '';
+    if (textValue.isNotEmpty && textValue != '0') {
+      final symbol = labelValue?.trim() ?? '';
+      return symbol.isEmpty ? textValue : '$textValue $symbol';
+    }
+
+    final numeric = currentValue ?? 0;
+    if (numeric == 0) {
+      return null;
+    }
+
+    final normalizedValue =
+        numeric % 1 == 0 ? numeric.toInt().toString() : numeric.toString();
+    final symbol = labelValue?.trim() ?? '';
+    return symbol.isEmpty ? normalizedValue : '$normalizedValue $symbol';
   }
 
   @override

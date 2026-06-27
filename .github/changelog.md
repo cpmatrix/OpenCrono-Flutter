@@ -3,6 +3,13 @@
 Tutte le modifiche tecniche rilevanti del progetto devono essere registrate qui.
 
 ## [Unreleased]
+### Changed
+- Migrazione toolchain Android per compatibilita con Flutter aggiornato:
+  - Android Gradle Plugin aggiornato a 8.6.1
+  - Gradle Wrapper aggiornato a 8.7 (bin)
+  - Kotlin Android Plugin aggiornato a 1.9.24
+  - Rimozione flag obsoleti in android/gradle.properties (android.builtInKotlin, android.newDsl)
+
 ### Added
 - Documentazione tecnica permanente in .github:
   - copilot-instructions.md

@@ -1,4 +1,7 @@
+import 'package:flutter/widgets.dart';
+
 import '../models/elements/opencrono_element.dart';
+import '../models/elements/opencrono_element_widget.dart';
 import '../models/elements/opencrono_group_element.dart';
 import '../models/elements/opencrono_input_element.dart';
 import '../models/elements/opencrono_message_element.dart';
@@ -129,4 +132,41 @@ class OpenCronoAnalogInputElement extends OpenCronoSwitchElement {
     super.currentTextValue,
     super.userProperty,
   });
+
+  @override
+  Widget buildElementWidget(BuildContext context) {
+    final safeTitle = (title?.trim().isEmpty ?? true)
+        ? 'Elemento ${id ?? ''}'
+        : title!.trim();
+    final valueLabel = _buildValueLabel();
+    print(
+      '[OPENCRONO WIDGET] build $runtimeType $safeTitle image=${getImageAsset()}',
+    );
+    return buildOpenCronoElementWidget(
+      context: context,
+      imageAsset: getImageAsset(),
+      title: safeTitle,
+      status: status,
+      titleInLeftArea: true,
+      bottomCenterValue: valueLabel,
+    );
+  }
+
+  String? _buildValueLabel() {
+    final textValue = currentTextValue?.trim() ?? '';
+    if (textValue.isNotEmpty && textValue != '0') {
+      final symbol = labelValue?.trim() ?? '';
+      return symbol.isEmpty ? textValue : '$textValue $symbol';
+    }
+
+    final numeric = currentValue ?? 0;
+    if (numeric == 0) {
+      return null;
+    }
+
+    final normalizedValue =
+        numeric % 1 == 0 ? numeric.toInt().toString() : numeric.toString();
+    final symbol = labelValue?.trim() ?? '';
+    return symbol.isEmpty ? normalizedValue : '$normalizedValue $symbol';
+  }
 }

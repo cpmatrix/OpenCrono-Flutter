@@ -136,6 +136,10 @@ Pattern reale:
 - applicationId: com.opencrono.opencrono
 - minSdk/targetSdk delegati a valori Flutter (flutter.minSdkVersion / flutter.targetSdkVersion).
 - Release signing attuale configurato con debug key placeholder nel template.
+- Toolchain Android aggiornata per compatibilita Flutter corrente:
+  - Android Gradle Plugin: 8.6.1
+  - Gradle Wrapper: 8.7 (bin)
+  - Kotlin Android Plugin: 1.9.24
 
 ## Compatibilita iOS
 - Presente cartella ios e setup CocoaPods standard Flutter.

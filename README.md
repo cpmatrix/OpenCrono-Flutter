@@ -14,3 +14,13 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Android Build Toolchain Migration
+
+Per compatibilita con la versione Flutter corrente, la toolchain Android e stata aggiornata con:
+
+- Android Gradle Plugin: 8.6.1
+- Gradle Wrapper: 8.7 (bin)
+- Kotlin Android Plugin: 1.9.24
+
+Questa migrazione mantiene invariati namespace, applicationId, versionCode, versionName e signing config.
