@@ -13,8 +13,9 @@ Widget buildOpenCronoElementWidget({
   final normalizedBottomValue = (bottomCenterValue ?? '').trim();
   final shouldShowBottomValue = normalizedBottomValue.isNotEmpty &&
       !_isZeroValueLabel(normalizedBottomValue);
-  final effectiveBottomCenterBottom =
-      bottomCenterBottom < 20 ? 20.0 : bottomCenterBottom;
+    final loweredBottomOffset = bottomCenterBottom - 5;
+    final effectiveBottomCenterBottom =
+      loweredBottomOffset < 15 ? 15.0 : loweredBottomOffset;
 
   return ClipRRect(
     borderRadius: BorderRadius.circular(16),
@@ -127,7 +128,7 @@ Widget buildOpenCronoElementWidget({
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
-                    fontSize: 12,
+                    fontSize: 13,
                     shadows: [
                       Shadow(
                         color: Colors.black87,
